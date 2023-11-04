@@ -25,7 +25,6 @@ void main(void)
   {
     if (toggleTexture == 0) {
         out_Color = ex_Color;
-        // out_Color = texture(myTexture, tex_Coord);
     } else {
         out_Color = texture(myTexture, tex_Coord);
     }

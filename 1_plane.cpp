@@ -15,7 +15,7 @@
 #include "stb_image.h"
 
 GLuint VaoId, VboId, EboId, ProgramId, myMatrixLocation;
-GLuint texture;
+GLuint planeTexture;
 glm::mat4 myMatrix, matrRot;
 
 int codCol;
@@ -40,7 +40,7 @@ void glfwIdleFunc(GLFWAPI GLFWwindow *_window,
     }
 }
 
-void LoadTexture(const char *photoPath) {
+void LoadTexture(const char *photoPath, GLuint &texture) {
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     //    Desfasurarea imaginii pe orizonatala/verticala in functie de
@@ -76,8 +76,18 @@ void CreateShaders(void) {
 
 void CreateVBO(void) {
 
-    // Coordonate;                  Culori;               Coordonate de texturare;
+    // Coordonate;
+    // Culori;
+    // Coordonate de texturare;
     GLfloat Vertices[] = {
+        // Track
+        xMin, planeY, 0.0f, 1.0f,
+        0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f,
+        xMax, planeY, 0.0f, 1.0f,
+        0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f,
+
         // Plane
         planeX, planeY, 0.0f, 1.0f,
         1.0f, 0.0f, 0.0f,
@@ -93,7 +103,7 @@ void CreateVBO(void) {
         0.0f, 1.0f, // Stanga sus;
     };
 
-    GLuint Indices[] = {0, 1, 2, 0, 2, 3};
+    GLuint Indices[] = {0, 1, 2, 3, 4, 2, 4, 5};
 
     glGenVertexArrays(1, &VaoId);
     glBindVertexArray(VaoId);
@@ -169,54 +179,59 @@ void Initialize(void) {
 
     myMatrixLocation = glGetUniformLocation(ProgramId, "myMatrix");
     glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
+
+    LoadTexture("plane.png", planeTexture);
 }
 
 void updatePlane() {
     if (planeOffsetX <= 100.0f) {
-        planeSpeedX = 3.0f;
+        planeSpeedX = 2.0f;
         planeSpeedY = 0.0f;
     } else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f) {
-        planeSpeedX = 5.0f;
-        planeSpeedY = 5.0f;
+        planeSpeedX = 2.0f;
+        planeSpeedY = 2.0f;
     } else if (planeOffsetX > 300.0f && planeOffsetX <= 700.0f) {
-        planeSpeedX = 5.0f;
+        planeSpeedX = 2.0f;
         planeSpeedY = 0.0f;
     } else if (planeOffsetX > 700.0f && planeOffsetX <= 900.0f) {
-        planeSpeedX = 5.0f;
-        planeSpeedY = -5.0f;
+        planeSpeedX = 2.0f;
+        planeSpeedY = -2.0f;
     } else if (planeOffsetX > 1000.0f) {
         planeSpeedX = 0;
-        planeSpeedY = 0;
     }
 
     planeOffsetX += planeSpeedX;
-    planeOffsetY = std::max(planeOffsetY + planeSpeedY, planeY);
+    planeOffsetY = std::max(planeOffsetY + planeSpeedY, 0.0f);
 }
 
 //  Functia de desenarea a graficii pe ecran;
 void RenderFunction(void) {
     glClear(GL_COLOR_BUFFER_BIT);
-
-    glm::mat4 resizeM = glm::ortho(xMin, xMax, yMin, yMax);
-    myMatrix = resizeM;
-
     CreateVBO();
 
-    LoadTexture("plane.png");
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glm::mat4 resizeM = glm::ortho(xMin, xMax, yMin, yMax);
 
+    GLint toggleTextureLocation = glGetUniformLocation(ProgramId, "toggleTexture");
+    glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
+
+    // Draw track
+    myMatrix = resizeM;
     glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
 
-    glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
-    glUniform1i(glGetUniformLocation(ProgramId, "toggleTexture"), 1);
+    glUniform1i(toggleTextureLocation, 0);
+
+    glDrawElements(GL_LINES, 2, GL_UNSIGNED_INT, 0);
 
     // Draw plane
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, planeTexture);
+    glUniform1i(toggleTextureLocation, 1);
 
     glm::mat4 planeTranslM = glm::translate(glm::vec3(planeOffsetX, planeOffsetY, 0.0f));
     myMatrix = resizeM * planeTranslM;
     glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void*)(2 * sizeof(GLuint)));
 
     glFlush();
 }
@@ -229,7 +244,7 @@ int main() {
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
