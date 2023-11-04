@@ -14,15 +14,18 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-GLuint VaoId, VboId, EboId, ProgramId, myMatrixLocation, viewLocation,
-    projLocation, matrRotlLocation, codColLocation;
+GLuint VaoId, VboId, EboId, ProgramId, myMatrixLocation;
 GLuint texture;
 glm::mat4 myMatrix, matrRot;
 
 int codCol;
 float PI = 3.141592;
-float width = 500, height = 500, xMin = -200.f, xMax = 200.0f, yMin = -200.0f,
-      yMax = 200.0f;
+float width = 1200, height = 600, xMin = 0.0f, xMax = 1200.0f, yMin = 0.0f, yMax = 600.0f;
+
+float planeWidth = 120.0f, planeHeight = 40.0f;
+float planeX = 40.0f, planeY = 40.0f;
+float planeOffsetX = 0.0f, planeOffsetY = 0.0f;
+float planeSpeedX = 1.0f, planeSpeedY = 3.0f;
 
 void glfwIdleFunc(GLFWAPI GLFWwindow *_window,
                   void function(GLFWAPI GLFWwindow *_window)) {
@@ -73,17 +76,21 @@ void CreateShaders(void) {
 
 void CreateVBO(void) {
 
+    // Coordonate;                  Culori;               Coordonate de texturare;
     GLfloat Vertices[] = {
-        // Coordonate;                  Culori;              Coordonate de
-        // texturare;
-        -70.0f, -10.0f, 0.0f, 1.0f, 1.0f,
-        0.0f,   0.0f,   0.0f, 0.0f, // Stanga jos;
-        70.0f,  -10.0f, 0.0f, 1.0f, 0.0f,
-        1.0f,   0.0f,   1.0f, 0.0f, // Dreapta jos;
-        70.0f,  10.0f,  0.0f, 1.0f, 1.0f,
-        1.0f,   0.0f,   1.0f, 1.0f, // Dreapta sus;
-        -70.0f, 10.0f,  0.0f, 1.0f, 0.0f,
-        1.0f,   1.0f,   0.0f, 1.0f // Stanga sus;
+        // Plane
+        planeX, planeY, 0.0f, 1.0f,
+        1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, // Stanga jos;
+        planeX + planeWidth,  planeY, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f,
+        1.0f, 0.0f, // Dreapta jos;
+        planeX + planeWidth,  planeY + planeHeight,  0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, // Dreapta sus;
+        planeX, planeY + planeHeight,  0.0f, 1.0f,
+        0.0f, 1.0f, 1.0f,
+        0.0f, 1.0f, // Stanga sus;
     };
 
     GLuint Indices[] = {0, 1, 2, 0, 2, 3};
@@ -164,6 +171,28 @@ void Initialize(void) {
     glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
 }
 
+void updatePlane() {
+    if (planeOffsetX <= 100.0f) {
+        planeSpeedX = 3.0f;
+        planeSpeedY = 0.0f;
+    } else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f) {
+        planeSpeedX = 5.0f;
+        planeSpeedY = 5.0f;
+    } else if (planeOffsetX > 300.0f && planeOffsetX <= 700.0f) {
+        planeSpeedX = 5.0f;
+        planeSpeedY = 0.0f;
+    } else if (planeOffsetX > 700.0f && planeOffsetX <= 900.0f) {
+        planeSpeedX = 5.0f;
+        planeSpeedY = -5.0f;
+    } else if (planeOffsetX > 1000.0f) {
+        planeSpeedX = 0;
+        planeSpeedY = 0;
+    }
+
+    planeOffsetX += planeSpeedX;
+    planeOffsetY = std::max(planeOffsetY + planeSpeedY, planeY);
+}
+
 //  Functia de desenarea a graficii pe ecran;
 void RenderFunction(void) {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -182,12 +211,17 @@ void RenderFunction(void) {
     glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
     glUniform1i(glGetUniformLocation(ProgramId, "toggleTexture"), 1);
 
+    // Draw plane
+
+    glm::mat4 planeTranslM = glm::translate(glm::vec3(planeOffsetX, planeOffsetY, 0.0f));
+    myMatrix = resizeM * planeTranslM;
+    glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     glFlush();
 }
 
-int main(int argc, char *argv[]) {
+int main() {
     GLenum res = glfwInit();
     if (res == GLFW_FALSE) {
         std::cerr << "GLFW initialization failed\n";
@@ -199,7 +233,7 @@ int main(int argc, char *argv[]) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    auto _window = glfwCreateWindow(500, 500, "Lab1", nullptr, nullptr);
+    auto _window = glfwCreateWindow(width, height, "Plane", nullptr, nullptr);
 
     if (_window == nullptr) {
         std::cerr << "Failed to create GLFW window \n";
@@ -213,6 +247,7 @@ int main(int argc, char *argv[]) {
     Initialize();
 
     while (!glfwWindowShouldClose(_window)) {
+        updatePlane();
         RenderFunction();
         glfwSwapBuffers(_window);
         glfwPollEvents();
