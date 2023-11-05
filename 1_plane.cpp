@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <iostream>
+#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -15,7 +16,7 @@
 #include "stb_image.h"
 
 GLuint VaoId, VboId, EboId, ProgramId, myMatrixLocation;
-GLuint planeTexture;
+GLuint planeTexture, cloudTexture;
 glm::mat4 myMatrix, matrRot;
 
 int codCol;
@@ -26,6 +27,11 @@ float planeWidth = 120.0f, planeHeight = 40.0f;
 float planeX = 40.0f, planeY = 40.0f;
 float planeOffsetX = 0.0f, planeOffsetY = 0.0f;
 float planeSpeedX = 1.0f, planeSpeedY = 3.0f;
+
+float cloudWidth = 190.0f, cloudHeight = 90.0f;
+float cloudSpeedX = 0.0f;
+std::vector<std::pair<float, float>> cloudsOffset = {{0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}};
+std::vector<std::pair<float, float>> cloudsPosition = {{100.0f, 500.0f}, {200.0f, 300.0f}, {500.0f, 400.0f}, {1000, 400}, {700, 200},{300, 800} };
 
 void glfwIdleFunc(GLFWAPI GLFWwindow *_window,
                   void function(GLFWAPI GLFWwindow *_window)) {
@@ -79,7 +85,8 @@ void CreateVBO(void) {
     // Coordonate;
     // Culori;
     // Coordonate de texturare;
-    GLfloat Vertices[] = {
+
+    std::vector<float> Vertices = {
         // Track
         xMin, planeY, 0.0f, 1.0f,
         0.0f, 0.0f, 0.0f,
@@ -92,33 +99,59 @@ void CreateVBO(void) {
         planeX, planeY, 0.0f, 1.0f,
         1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, // Stanga jos;
-        planeX + planeWidth,  planeY, 0.0f, 1.0f,
+        planeX + planeWidth, planeY, 0.0f, 1.0f,
         0.0f, 1.0f, 0.0f,
         1.0f, 0.0f, // Dreapta jos;
-        planeX + planeWidth,  planeY + planeHeight,  0.0f, 1.0f,
+        planeX + planeWidth, planeY + planeHeight, 0.0f, 1.0f,
         1.0f, 1.0f, 0.0f,
         1.0f, 1.0f, // Dreapta sus;
-        planeX, planeY + planeHeight,  0.0f, 1.0f,
+        planeX, planeY + planeHeight, 0.0f, 1.0f,
         0.0f, 1.0f, 1.0f,
         0.0f, 1.0f, // Stanga sus;
     };
 
-    GLuint Indices[] = {0, 1, 2, 3, 4, 2, 4, 5};
+    std::vector<unsigned int> Indices = {0, 1, 2, 3, 4, 2, 4, 5};
+    // Append cloud data
+    unsigned int baseNumber = Vertices.size() / 9;
+    for (size_t i = 0; i < cloudsPosition.size(); i++)
+    {
+        Indices.insert(Indices.end(), {baseNumber, baseNumber + 1, baseNumber + 2, baseNumber, baseNumber + 2, baseNumber + 3});
+        baseNumber += 4;
+    }
+    // Append cloud data
+    for (auto &&position : cloudsPosition)
+    {
+        Vertices.insert(Vertices.end(), {position.first, position.second, 0.0f, 1.0f});
+        Vertices.insert(Vertices.end(), {1.0f, 0.0f, 0.0f});
+        Vertices.insert(Vertices.end(), {0.0f, 0.0f});
 
+        Vertices.insert(Vertices.end(), {position.first + cloudWidth, position.second, 0.0f, 1.0f});
+        Vertices.insert(Vertices.end(), {0.0f, 1.0f, 0.0f});
+        Vertices.insert(Vertices.end(), {1.0f, 0.0f});
+
+        Vertices.insert(Vertices.end(), {position.first + cloudWidth, position.second + cloudHeight, 0.0f, 1.0f});
+        Vertices.insert(Vertices.end(), {1.0f, 1.0f, 0.0f});
+        Vertices.insert(Vertices.end(), {1.0f, 1.0f});
+
+        Vertices.insert(Vertices.end(), {position.first, position.second + cloudHeight, 0.0f, 1.0f});
+        Vertices.insert(Vertices.end(), {0.0f, 1.0f, 1.0f});
+        Vertices.insert(Vertices.end(), {0.0f, 1.0f});
+    }
     glGenVertexArrays(1, &VaoId);
     glBindVertexArray(VaoId);
 
     glGenBuffers(1, &VboId);
     glBindBuffer(GL_ARRAY_BUFFER, VboId);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
+    std::cout << sizeof(Vertices) << '\n';
+    std::cout << sizeof(float) << '\n';
+    glBufferData(GL_ARRAY_BUFFER, Vertices.size() * sizeof(float), Vertices.data(), GL_STATIC_DRAW);
 
     glGenBuffers(1, &EboId);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EboId);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 sizeof(Indices),
-                 Indices,
+                 sizeof(unsigned int) * Indices.size(),
+                 Indices.data(),
                  GL_STATIC_DRAW);
-
     //  Se asociaza atributul (0 = coordonate) pentru shader;
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0,
@@ -181,27 +214,44 @@ void Initialize(void) {
     glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
 
     LoadTexture("plane.png", planeTexture);
+    LoadTexture("cloud.png", cloudTexture);
 }
 
 void updatePlane() {
-    if (planeOffsetX <= 100.0f) {
+    if (planeOffsetX <= 100.0f)
+    {
         planeSpeedX = 2.0f;
         planeSpeedY = 0.0f;
-    } else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f) {
+    }
+    else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f)
+    {
         planeSpeedX = 2.0f;
         planeSpeedY = 2.0f;
-    } else if (planeOffsetX > 300.0f && planeOffsetX <= 700.0f) {
-        planeSpeedX = 2.0f;
+    }
+    else if (planeOffsetX > 300.0f && planeOffsetX <= 700.0f)
+    {
+        planeSpeedX = 0.3f;
         planeSpeedY = 0.0f;
-    } else if (planeOffsetX > 700.0f && planeOffsetX <= 900.0f) {
+        cloudSpeedX = -0.7f;
+    }
+    else if (planeOffsetX > 700.0f && planeOffsetX <= 900.0f)
+    {
         planeSpeedX = 2.0f;
         planeSpeedY = -2.0f;
-    } else if (planeOffsetX > 1000.0f) {
+    }
+    else if (planeOffsetX > 1000.0f)
+    {
         planeSpeedX = 0;
+        cloudSpeedX = 0;
     }
 
     planeOffsetX += planeSpeedX;
     planeOffsetY = std::max(planeOffsetY + planeSpeedY, 0.0f);
+
+    for (auto &&offset : cloudsOffset)
+    {
+        offset.first += cloudSpeedX;
+    }
 }
 
 //  Functia de desenarea a graficii pe ecran;
@@ -213,6 +263,19 @@ void RenderFunction(void) {
 
     GLint toggleTextureLocation = glGetUniformLocation(ProgramId, "toggleTexture");
     glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
+
+    // Draw clouds
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, cloudTexture);
+    glUniform1i(toggleTextureLocation, 1);
+
+    for (size_t i = 0; i < cloudsOffset.size(); i++)
+    {
+        glm::mat4 cloudTranslM = glm::translate(glm::vec3(cloudsOffset[i].first, cloudsOffset[i].second, 0.0f));
+        myMatrix = resizeM * cloudTranslM;
+        glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void *)((i * 6 + 8) * sizeof(GLuint)));
+    }
 
     // Draw track
     myMatrix = resizeM;
@@ -231,7 +294,7 @@ void RenderFunction(void) {
     myMatrix = resizeM * planeTranslM;
     glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
 
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void*)(2 * sizeof(GLuint)));
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void *)(2 * sizeof(GLuint)));
 
     glFlush();
 }
