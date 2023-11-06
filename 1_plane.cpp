@@ -2,9 +2,9 @@
 #include <GLFW/glfw3.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <iostream>
-#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -17,11 +17,10 @@
 
 GLuint VaoId, VboId, EboId, ProgramId, myMatrixLocation;
 GLuint planeTexture, cloudTexture;
-glm::mat4 myMatrix, matrRot;
+glm::mat4 myMatrix;
 
-int codCol;
-float PI = 3.141592;
-float width = 1200, height = 600, xMin = 0.0f, xMax = 1200.0f, yMin = 0.0f, yMax = 600.0f;
+float width = 1200, height = 600, xMin = 0.0f, xMax = 1200.0f, yMin = 0.0f,
+      yMax = 600.0f;
 
 float planeWidth = 120.0f, planeHeight = 40.0f;
 float planeX = 40.0f, planeY = 40.0f;
@@ -30,21 +29,18 @@ float planeSpeedX = 1.0f, planeSpeedY = 3.0f;
 
 float cloudWidth = 190.0f, cloudHeight = 90.0f;
 float cloudSpeedX = 0.0f;
-std::vector<std::pair<float, float>> cloudsOffset = {{0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}};
-std::vector<std::pair<float, float>> cloudsPosition = {{100.0f, 500.0f}, {200.0f, 300.0f}, {500.0f, 400.0f}, {1000, 400}, {700, 200},{300, 800} };
-
-void glfwIdleFunc(GLFWAPI GLFWwindow *_window,
-                  void function(GLFWAPI GLFWwindow *_window)) {
-    while (!glfwWindowShouldClose(_window)) {
-        // Your rendering and update code here
-        function(_window);
-        // Swap buffers (if you're using double buffering)
-        glfwSwapBuffers(_window);
-
-        // Poll for and process events (this is necessary for input handling)
-        glfwPollEvents();
-    }
-}
+std::vector<std::pair<float, float>> cloudOffsets = {{0.0f, 0.0f},
+                                                     {0.0f, 0.0f},
+                                                     {0.0f, 0.0f},
+                                                     {0.0f, 0.0f},
+                                                     {0.0f, 0.0f},
+                                                     {0.0f, 0.0f}};
+std::vector<std::pair<float, float>> cloudPositions = {{100.0f, 500.0f},
+                                                       {200.0f, 300.0f},
+                                                       {500.0f, 400.0f},
+                                                       {1000, 400},
+                                                       {700, 200},
+                                                       {300, 800}};
 
 void LoadTexture(const char *photoPath, GLuint &texture) {
     glGenTextures(1, &texture);
@@ -80,13 +76,50 @@ void CreateShaders(void) {
     glUseProgram(ProgramId);
 }
 
+void AddCloudVertices(std::vector<GLfloat> &vertices,
+                      std::vector<GLuint> &indices) {
+    // Apend cloud indices
+    unsigned int baseNumber = vertices.size() / 9;
+    for (size_t i = 0; i < cloudPositions.size(); i++) {
+        indices.insert(indices.end(),
+                       {baseNumber,
+                        baseNumber + 1,
+                        baseNumber + 2,
+                        baseNumber,
+                        baseNumber + 2,
+                        baseNumber + 3});
+        baseNumber += 4;
+    }
+
+    // Append cloud vertices
+    for (auto &&[x, y] : cloudPositions) {
+        vertices.insert(vertices.end(), {x, y, 0.0f, 1.0f});
+        vertices.insert(vertices.end(), {1.0f, 0.0f, 0.0f});
+        vertices.insert(vertices.end(), {0.0f, 0.0f});
+
+        vertices.insert(vertices.end(), {x + cloudWidth, y, 0.0f, 1.0f});
+        vertices.insert(vertices.end(), {0.0f, 1.0f, 0.0f});
+        vertices.insert(vertices.end(), {1.0f, 0.0f});
+
+        vertices.insert(vertices.end(),
+                        {x + cloudWidth, y + cloudHeight, 0.0f, 1.0f});
+        vertices.insert(vertices.end(), {1.0f, 1.0f, 0.0f});
+        vertices.insert(vertices.end(), {1.0f, 1.0f});
+
+        vertices.insert(vertices.end(), {x, y + cloudHeight, 0.0f, 1.0f});
+        vertices.insert(vertices.end(), {0.0f, 1.0f, 1.0f});
+        vertices.insert(vertices.end(), {0.0f, 1.0f});
+    }
+}
+
 void CreateVBO(void) {
 
     // Coordonate;
     // Culori;
     // Coordonate de texturare;
 
-    std::vector<float> Vertices = {
+    // clang-format off
+    std::vector<GLfloat> vertices = {
         // Track
         xMin, planeY, 0.0f, 1.0f,
         0.0f, 0.0f, 0.0f,
@@ -109,48 +142,27 @@ void CreateVBO(void) {
         0.0f, 1.0f, 1.0f,
         0.0f, 1.0f, // Stanga sus;
     };
+    // clang-format on
 
-    std::vector<unsigned int> Indices = {0, 1, 2, 3, 4, 2, 4, 5};
-    // Append cloud data
-    unsigned int baseNumber = Vertices.size() / 9;
-    for (size_t i = 0; i < cloudsPosition.size(); i++)
-    {
-        Indices.insert(Indices.end(), {baseNumber, baseNumber + 1, baseNumber + 2, baseNumber, baseNumber + 2, baseNumber + 3});
-        baseNumber += 4;
-    }
-    // Append cloud data
-    for (auto &&position : cloudsPosition)
-    {
-        Vertices.insert(Vertices.end(), {position.first, position.second, 0.0f, 1.0f});
-        Vertices.insert(Vertices.end(), {1.0f, 0.0f, 0.0f});
-        Vertices.insert(Vertices.end(), {0.0f, 0.0f});
+    std::vector<GLuint> indices = {0, 1, 2, 3, 4, 2, 4, 5};
 
-        Vertices.insert(Vertices.end(), {position.first + cloudWidth, position.second, 0.0f, 1.0f});
-        Vertices.insert(Vertices.end(), {0.0f, 1.0f, 0.0f});
-        Vertices.insert(Vertices.end(), {1.0f, 0.0f});
+    AddCloudVertices(vertices, indices);
 
-        Vertices.insert(Vertices.end(), {position.first + cloudWidth, position.second + cloudHeight, 0.0f, 1.0f});
-        Vertices.insert(Vertices.end(), {1.0f, 1.0f, 0.0f});
-        Vertices.insert(Vertices.end(), {1.0f, 1.0f});
-
-        Vertices.insert(Vertices.end(), {position.first, position.second + cloudHeight, 0.0f, 1.0f});
-        Vertices.insert(Vertices.end(), {0.0f, 1.0f, 1.0f});
-        Vertices.insert(Vertices.end(), {0.0f, 1.0f});
-    }
     glGenVertexArrays(1, &VaoId);
     glBindVertexArray(VaoId);
 
     glGenBuffers(1, &VboId);
     glBindBuffer(GL_ARRAY_BUFFER, VboId);
-    std::cout << sizeof(Vertices) << '\n';
-    std::cout << sizeof(float) << '\n';
-    glBufferData(GL_ARRAY_BUFFER, Vertices.size() * sizeof(float), Vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER,
+                 vertices.size() * sizeof(float),
+                 vertices.data(),
+                 GL_STATIC_DRAW);
 
     glGenBuffers(1, &EboId);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EboId);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 sizeof(unsigned int) * Indices.size(),
-                 Indices.data(),
+                 sizeof(unsigned int) * indices.size(),
+                 indices.data(),
                  GL_STATIC_DRAW);
     //  Se asociaza atributul (0 = coordonate) pentru shader;
     glEnableVertexAttribArray(0);
@@ -218,29 +230,20 @@ void Initialize(void) {
 }
 
 void updatePlane() {
-    if (planeOffsetX <= 100.0f)
-    {
+    if (planeOffsetX <= 100.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = 0.0f;
-    }
-    else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f)
-    {
+    } else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = 2.0f;
-    }
-    else if (planeOffsetX > 300.0f && planeOffsetX <= 700.0f)
-    {
+    } else if (planeOffsetX > 300.0f && planeOffsetX <= 700.0f) {
         planeSpeedX = 0.3f;
         planeSpeedY = 0.0f;
         cloudSpeedX = -0.7f;
-    }
-    else if (planeOffsetX > 700.0f && planeOffsetX <= 900.0f)
-    {
+    } else if (planeOffsetX > 700.0f && planeOffsetX <= 900.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = -2.0f;
-    }
-    else if (planeOffsetX > 1000.0f)
-    {
+    } else if (planeOffsetX > 1000.0f) {
         planeSpeedX = 0;
         cloudSpeedX = 0;
     }
@@ -248,8 +251,7 @@ void updatePlane() {
     planeOffsetX += planeSpeedX;
     planeOffsetY = std::max(planeOffsetY + planeSpeedY, 0.0f);
 
-    for (auto &&offset : cloudsOffset)
-    {
+    for (auto &&offset : cloudOffsets) {
         offset.first += cloudSpeedX;
     }
 }
@@ -261,7 +263,8 @@ void RenderFunction(void) {
 
     glm::mat4 resizeM = glm::ortho(xMin, xMax, yMin, yMax);
 
-    GLint toggleTextureLocation = glGetUniformLocation(ProgramId, "toggleTexture");
+    GLint toggleTextureLocation =
+        glGetUniformLocation(ProgramId, "toggleTexture");
     glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
 
     // Draw clouds
@@ -269,12 +272,16 @@ void RenderFunction(void) {
     glBindTexture(GL_TEXTURE_2D, cloudTexture);
     glUniform1i(toggleTextureLocation, 1);
 
-    for (size_t i = 0; i < cloudsOffset.size(); i++)
-    {
-        glm::mat4 cloudTranslM = glm::translate(glm::vec3(cloudsOffset[i].first, cloudsOffset[i].second, 0.0f));
+    for (size_t i = 0; i < cloudOffsets.size(); i++) {
+        auto &[xOffset, yOffset] = cloudOffsets[i];
+        glm::mat4 cloudTranslM =
+            glm::translate(glm::vec3(xOffset, yOffset, 0.0f));
         myMatrix = resizeM * cloudTranslM;
         glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void *)((i * 6 + 8) * sizeof(GLuint)));
+        glDrawElements(GL_TRIANGLES,
+                       6,
+                       GL_UNSIGNED_INT,
+                       (const void *)((i * 6 + 8) * sizeof(GLuint)));
     }
 
     // Draw track
@@ -290,11 +297,15 @@ void RenderFunction(void) {
     glBindTexture(GL_TEXTURE_2D, planeTexture);
     glUniform1i(toggleTextureLocation, 1);
 
-    glm::mat4 planeTranslM = glm::translate(glm::vec3(planeOffsetX, planeOffsetY, 0.0f));
+    glm::mat4 planeTranslM =
+        glm::translate(glm::vec3(planeOffsetX, planeOffsetY, 0.0f));
     myMatrix = resizeM * planeTranslM;
     glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
 
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void *)(2 * sizeof(GLuint)));
+    glDrawElements(GL_TRIANGLES,
+                   6,
+                   GL_UNSIGNED_INT,
+                   (const void *)(2 * sizeof(GLuint)));
 
     glFlush();
 }
