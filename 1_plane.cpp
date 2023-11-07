@@ -235,7 +235,11 @@ void updatePlane() {
         planeSpeedX = 2.0f;
         planeSpeedY = 0.0f;
         planeRotationDegrees = 0.0f;
-    } else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f) {
+    } else if (planeOffsetX > 100.0f && planeOffsetX <= 175.0f) {
+        planeSpeedX = 2.0f;
+        planeSpeedY = 2.0f;
+        planeRotationDegrees = 15.0f;
+    } else if (planeOffsetX > 175.0f && planeOffsetX <= 300.0f){
         planeSpeedX = 2.0f;
         planeSpeedY = 2.0f;
         planeRotationDegrees = 45.0f;
