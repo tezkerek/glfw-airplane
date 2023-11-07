@@ -26,6 +26,7 @@ float planeWidth = 120.0f, planeHeight = 40.0f;
 float planeX = 40.0f, planeY = 40.0f;
 float planeOffsetX = 0.0f, planeOffsetY = 0.0f;
 float planeSpeedX = 1.0f, planeSpeedY = 3.0f;
+float planeRotationDegrees = 0.0f;
 
 float cloudWidth = 190.0f, cloudHeight = 90.0f;
 float cloudSpeedX = 0.0f;
@@ -233,19 +234,30 @@ void updatePlane() {
     if (planeOffsetX <= 100.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = 0.0f;
+        planeRotationDegrees = 0.0f;
     } else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = 2.0f;
+        planeRotationDegrees = 45.0f;
     } else if (planeOffsetX > 300.0f && planeOffsetX <= 700.0f) {
         planeSpeedX = 0.3f;
         planeSpeedY = 0.0f;
         cloudSpeedX = -0.7f;
-    } else if (planeOffsetX > 700.0f && planeOffsetX <= 900.0f) {
+        planeRotationDegrees = 0.0f;
+    } else if (planeOffsetX > 700.0f && planeOffsetX <= 850.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = -2.0f;
+        planeRotationDegrees = 315.0f;
+    } else if (planeOffsetX > 850.0f && planeOffsetX <= 900.0f){
+        planeSpeedX = 2.0f;
+        planeSpeedY = -2.0f;
+        planeRotationDegrees = 345.0f;
+    } else if (planeOffsetX > 900.0f && planeOffsetX <= 1000.0f) {
+        planeRotationDegrees = 0.0f;
     } else if (planeOffsetX > 1000.0f) {
         planeSpeedX = 0;
         cloudSpeedX = 0;
+        planeRotationDegrees = 0.0f;
     }
 
     planeOffsetX += planeSpeedX;
@@ -296,10 +308,13 @@ void RenderFunction(void) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, planeTexture);
     glUniform1i(toggleTextureLocation, 1);
-
+    
     glm::mat4 planeTranslM =
         glm::translate(glm::vec3(planeOffsetX, planeOffsetY, 0.0f));
-    myMatrix = resizeM * planeTranslM;
+    glm::mat4 transToOrigin =glm::translate(glm::vec3(-(planeX + planeWidth / 2 ), -(planeY + planeHeight / 2), 0.0f));
+    glm::mat4 transBack = glm::translate(glm::vec3(planeX + planeWidth / 2, planeY + planeHeight / 2, 0.0f));
+    glm::mat4 rotateM = glm::rotate(glm::mat4(1.0f), glm::radians(planeRotationDegrees), glm::vec3(0.0f, 0.0f, 1.0f));
+    myMatrix = resizeM * planeTranslM * transBack * rotateM * transToOrigin;
     glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
 
     glDrawElements(GL_TRIANGLES,
@@ -318,7 +333,7 @@ int main() {
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
