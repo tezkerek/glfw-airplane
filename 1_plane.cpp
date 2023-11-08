@@ -10,13 +10,13 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtx/transform.hpp"
-#include "loadShaders.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "loadShaders.h"
 
 GLuint VaoId, VboId, EboId, ProgramId, myMatrixLocation;
-GLuint planeTexture, cloudTexture;
+GLuint planeTexture, cloudTexture, sunTexture;
 glm::mat4 myMatrix;
 
 float width = 1200, height = 600, xMin = 0.0f, xMax = 1200.0f, yMin = 0.0f,
@@ -30,6 +30,12 @@ float planeRotationDegrees = 0.0f;
 
 float cloudWidth = 190.0f, cloudHeight = 90.0f;
 float cloudSpeedX = 0.0f;
+
+float sunX = 550.0f, sunY = 350.0f;
+float sunWidth = 100.0f, sunHeight = 100.0f;
+float sunSpeedX = 0.0f, sunSpeedY = 0.0f;
+float sunOffsetX = 900.0f, sunOffsetY = 0.0f;
+
 std::vector<std::pair<float, float>> cloudOffsets = {{0.0f, 0.0f},
                                                      {0.0f, 0.0f},
                                                      {0.0f, 0.0f},
@@ -142,10 +148,24 @@ void CreateVBO(void) {
         planeX, planeY + planeHeight, 0.0f, 1.0f,
         0.0f, 1.0f, 1.0f,
         0.0f, 1.0f, // Stanga sus;
+
+        ///Sun
+        sunX, sunY, 0.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        0.0f, 0.0f,
+        sunX + sunWidth, sunY, 0.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 0.0f,
+        sunX + sunWidth, sunY + sunHeight, 0.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f,
+        sunX, sunY + sunHeight, 0.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        0.0f, 1.0f,
     };
     // clang-format on
 
-    std::vector<GLuint> indices = {0, 1, 2, 3, 4, 2, 4, 5};
+    std::vector<GLuint> indices = {0, 1, 2, 3, 4, 2, 4, 5, 6, 7, 8, 6, 8, 9};
 
     AddCloudVertices(vertices, indices);
 
@@ -228,6 +248,7 @@ void Initialize(void) {
 
     LoadTexture("plane.png", planeTexture);
     LoadTexture("cloud.png", cloudTexture);
+    LoadTexture("sun.png", sunTexture);
 }
 
 void updatePlane() {
@@ -243,11 +264,13 @@ void updatePlane() {
         planeSpeedX = 2.0f;
         planeSpeedY = 2.0f;
         planeRotationDegrees = 45.0f;
-    } else if (planeOffsetX > 300.0f && planeOffsetX <= 700.0f) {
+    } else if (planeOffsetX > 300.0f && planeOffsetX <= 600.0f) {
         planeSpeedX = 0.3f;
         planeSpeedY = 0.0f;
         cloudSpeedX = -0.7f;
         planeRotationDegrees = 0.0f;
+    } else if(planeOffsetX > 600.0f && planeOffsetX <= 700.0f) {
+        sunSpeedX = -3.0f;
     } else if (planeOffsetX > 700.0f && planeOffsetX <= 850.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = -2.0f;
@@ -261,11 +284,16 @@ void updatePlane() {
     } else if (planeOffsetX > 1000.0f) {
         planeSpeedX = 0;
         cloudSpeedX = 0;
+        sunSpeedX = 0;
+        sunSpeedY = 0;
         planeRotationDegrees = 0.0f;
     }
 
     planeOffsetX += planeSpeedX;
     planeOffsetY = std::max(planeOffsetY + planeSpeedY, 0.0f);
+
+    sunOffsetX = std::max(sunOffsetX + sunSpeedX, 0.0f);
+    sunOffsetY += sunSpeedY;
 
     for (auto &&offset : cloudOffsets) {
         offset.first += cloudSpeedX;
@@ -283,6 +311,15 @@ void RenderFunction(void) {
         glGetUniformLocation(ProgramId, "toggleTexture");
     glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
 
+    //Draw sun
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, sunTexture);
+    glUniform1i(toggleTextureLocation, 1);
+    glm::mat4 sunTranslM = glm::translate(glm::vec3(sunOffsetX, sunOffsetY, 0.0f));
+    myMatrix = resizeM * sunTranslM;
+    glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void *)(8 * sizeof(GLuint)));
+
     // Draw clouds
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, cloudTexture);
@@ -297,7 +334,7 @@ void RenderFunction(void) {
         glDrawElements(GL_TRIANGLES,
                        6,
                        GL_UNSIGNED_INT,
-                       (const void *)((i * 6 + 8) * sizeof(GLuint)));
+                       (const void *)((i * 6 + 14) * sizeof(GLuint)));
     }
 
     // Draw track
