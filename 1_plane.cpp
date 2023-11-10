@@ -291,13 +291,13 @@ void updatePlane() {
         
     } else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f) { // mid air takeoff P 1 
         planeSpeedX = 2.0f;
-        planeSpeedY = 1.5f;
-        planeRotationSpeed = 0.16f;
+        planeSpeedY = 1.0f;
+        planeRotationSpeed = 0.13f;
         
     } else if (planeOffsetX > 300.0f && planeOffsetX <= 400.0f) { // mid air takeoff part 2
         planeSpeedX = 2.0f;
-        planeSpeedY = 1.5f;
-        planeRotationSpeed = -0.24f;
+        planeSpeedY = 1.0f;
+        planeRotationSpeed = -0.2f;
     } else if (planeOffsetX > 400.0f && planeOffsetX <= 500.0f) { // cruising
         planeSpeedX = 0.3f;
         planeSpeedY = 0.0f;
@@ -313,13 +313,13 @@ void updatePlane() {
 
     } else if (planeOffsetX > 601.0f && planeOffsetX <= 780.0f) { // landing p1
         planeSpeedX = 2.0f;
-        planeSpeedY = -1.5f;
+        planeSpeedY = -1.0f;
 
         planeRotationSpeed = -0.17f;
 
     } else if (planeOffsetX > 780.0f && planeOffsetX <= 900.0f) { // landing p2
         planeSpeedX = 2.0f;
-        planeSpeedY = -1.5f;
+        planeSpeedY = -1.0f;
 
         planeRotationSpeed = 0.25f;
 
