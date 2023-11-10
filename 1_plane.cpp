@@ -12,15 +12,22 @@
 #include "glm/gtx/transform.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 #include "loadShaders.h"
+#include "stb_image.h"
 
-GLuint VaoId, VboId, EboId, ProgramId, myMatrixLocation;
+GLuint ProgramId, InterpolateShaderId;
+GLuint VaoId, VboId, EboId, myMatrixLocation;
 GLuint planeTexture, cloudTexture, sunTexture;
 glm::mat4 myMatrix;
 
 float width = 1200, height = 600, xMin = 0.0f, xMax = 1200.0f, yMin = 0.0f,
       yMax = 600.0f;
+
+static const float skyInitialColor[] = {
+    13.0f / 255, 39.0f / 255, 92.0f / 255, 1.0f};
+static const float skyFinalColor[] = {
+    217.0f / 255, 255.0f / 255, 254.0f / 255, 1.0f};
+float skyColorWeight = 0.0f;
 
 float planeWidth = 120.0f, planeHeight = 40.0f;
 float planeX = 40.0f, planeY = 40.0f;
@@ -45,9 +52,9 @@ std::vector<std::pair<float, float>> cloudOffsets = {{0.0f, 0.0f},
 std::vector<std::pair<float, float>> cloudPositions = {{100.0f, 500.0f},
                                                        {200.0f, 300.0f},
                                                        {500.0f, 400.0f},
-                                                       {1000, 400},
-                                                       {700, 200},
-                                                       {300, 800}};
+                                                       {1000.0f, 400.0f},
+                                                       {700.0f, 200.0f},
+                                                       {300.0f, 800.0f}};
 
 void LoadTexture(const char *photoPath, GLuint &texture) {
     glGenTextures(1, &texture);
@@ -80,7 +87,8 @@ void LoadTexture(const char *photoPath, GLuint &texture) {
 
 void CreateShaders(void) {
     ProgramId = LoadShaders("1_plane.vert", "1_plane.frag");
-    glUseProgram(ProgramId);
+    InterpolateShaderId =
+        LoadShaders("color_interpolation.vert", "1_plane.frag");
 }
 
 void AddCloudVertices(std::vector<GLfloat> &vertices,
@@ -121,12 +129,25 @@ void AddCloudVertices(std::vector<GLfloat> &vertices,
 
 void CreateVBO(void) {
 
+    // clang-format off
     // Coordonate;
     // Culori;
     // Coordonate de texturare;
-
-    // clang-format off
     std::vector<GLfloat> vertices = {
+        // Sky
+        xMin, yMin, 0.0f, 1.0f,
+        skyInitialColor[0], skyInitialColor[1], skyInitialColor[2],
+        0.0f, 0.0f,
+        xMax, yMin, 0.0f, 1.0f,
+        skyInitialColor[0], skyInitialColor[1], skyInitialColor[2],
+        0.0f, 0.0f,
+        xMax, yMax, 0.0f, 1.0f,
+        skyInitialColor[0], skyInitialColor[1], skyInitialColor[2],
+        0.0f, 0.0f,
+        xMin, yMax, 0.0f, 1.0f,
+        skyInitialColor[0], skyInitialColor[1], skyInitialColor[2],
+        0.0f, 0.0f,
+
         // Track
         xMin, planeY, 0.0f, 1.0f,
         0.0f, 0.0f, 0.0f,
@@ -149,7 +170,7 @@ void CreateVBO(void) {
         0.0f, 1.0f, 1.0f,
         0.0f, 1.0f, // Stanga sus;
 
-        ///Sun
+        // Sun
         sunX, sunY, 0.0f, 1.0f,
         1.0f, 1.0f, 1.0f,
         0.0f, 0.0f,
@@ -163,9 +184,18 @@ void CreateVBO(void) {
         1.0f, 1.0f, 1.0f,
         0.0f, 1.0f,
     };
-    // clang-format on
 
-    std::vector<GLuint> indices = {0, 1, 2, 3, 4, 2, 4, 5, 6, 7, 8, 6, 8, 9};
+    std::vector<GLuint> indices = {
+        // Sky
+        0, 1, 2, 0, 2, 3,
+        // Track
+        4, 5,
+        // Plane
+        6, 7, 8, 6, 8, 9,
+        // Sun
+        10, 11, 12, 10, 12, 13,
+    };
+    // clang-format on
 
     AddCloudVertices(vertices, indices);
 
@@ -252,6 +282,7 @@ void Initialize(void) {
 }
 
 void updatePlane() {
+    float skyColorStep = 0.0f;
     if (planeOffsetX <= 100.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = 0.0f;
@@ -260,22 +291,24 @@ void updatePlane() {
         planeSpeedX = 2.0f;
         planeSpeedY = 2.0f;
         planeRotationDegrees = 15.0f;
-    } else if (planeOffsetX > 175.0f && planeOffsetX <= 300.0f){
+    } else if (planeOffsetX > 175.0f && planeOffsetX <= 300.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = 2.0f;
         planeRotationDegrees = 45.0f;
     } else if (planeOffsetX > 300.0f && planeOffsetX <= 600.0f) {
         planeSpeedX = 0.3f;
         planeSpeedY = 0.0f;
-        cloudSpeedX = -0.7f;
         planeRotationDegrees = 0.0f;
-    } else if(planeOffsetX > 600.0f && planeOffsetX <= 700.0f) {
+        cloudSpeedX = -0.7f;
+        skyColorStep = 0.001f;
+    } else if (planeOffsetX > 600.0f && planeOffsetX <= 700.0f) {
         sunSpeedX = -3.0f;
+        skyColorStep = 0.008f;
     } else if (planeOffsetX > 700.0f && planeOffsetX <= 850.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = -2.0f;
         planeRotationDegrees = 315.0f;
-    } else if (planeOffsetX > 850.0f && planeOffsetX <= 900.0f){
+    } else if (planeOffsetX > 850.0f && planeOffsetX <= 900.0f) {
         planeSpeedX = 2.0f;
         planeSpeedY = -2.0f;
         planeRotationDegrees = 345.0f;
@@ -295,6 +328,8 @@ void updatePlane() {
     sunOffsetX = std::max(sunOffsetX + sunSpeedX, 0.0f);
     sunOffsetY += sunSpeedY;
 
+    skyColorWeight = glm::clamp(skyColorWeight + skyColorStep, 0.0f, 1.0f);
+
     for (auto &&offset : cloudOffsets) {
         offset.first += cloudSpeedX;
     }
@@ -311,14 +346,41 @@ void RenderFunction(void) {
         glGetUniformLocation(ProgramId, "toggleTexture");
     glUniform1i(glGetUniformLocation(ProgramId, "myTexture"), 0);
 
-    //Draw sun
+    // Draw sky
+    glUseProgram(InterpolateShaderId);
+    myMatrix = resizeM;
+    glUniformMatrix4fv(glGetUniformLocation(InterpolateShaderId, "matrix"),
+                       1,
+                       GL_FALSE,
+                       &myMatrix[0][0]);
+    glUniform4fv(glGetUniformLocation(InterpolateShaderId, "targetColor"),
+                 1,
+                 skyFinalColor);
+    glUniform1f(glGetUniformLocation(InterpolateShaderId, "weight"),
+                skyColorWeight);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void *)0);
+
+    // Draw track
+    glUseProgram(ProgramId);
+    glUniform1i(toggleTextureLocation, 0);
+    glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
+    glDrawElements(GL_LINES,
+                   2,
+                   GL_UNSIGNED_INT,
+                   (const void *)(6 * sizeof(GLuint)));
+
+    // Draw sun
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, sunTexture);
     glUniform1i(toggleTextureLocation, 1);
-    glm::mat4 sunTranslM = glm::translate(glm::vec3(sunOffsetX, sunOffsetY, 0.0f));
+    glm::mat4 sunTranslM =
+        glm::translate(glm::vec3(sunOffsetX, sunOffsetY, 0.0f));
     myMatrix = resizeM * sunTranslM;
     glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (const void *)(8 * sizeof(GLuint)));
+    glDrawElements(GL_TRIANGLES,
+                   6,
+                   GL_UNSIGNED_INT,
+                   (const void *)(14 * sizeof(GLuint)));
 
     // Draw clouds
     glActiveTexture(GL_TEXTURE0);
@@ -334,34 +396,32 @@ void RenderFunction(void) {
         glDrawElements(GL_TRIANGLES,
                        6,
                        GL_UNSIGNED_INT,
-                       (const void *)((i * 6 + 14) * sizeof(GLuint)));
+                       (const void *)((20 + i * 6) * sizeof(GLuint)));
     }
-
-    // Draw track
-    myMatrix = resizeM;
-    glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
-
-    glUniform1i(toggleTextureLocation, 0);
-
-    glDrawElements(GL_LINES, 2, GL_UNSIGNED_INT, 0);
 
     // Draw plane
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, planeTexture);
     glUniform1i(toggleTextureLocation, 1);
-    
+
     glm::mat4 planeTranslM =
         glm::translate(glm::vec3(planeOffsetX, planeOffsetY, 0.0f));
-    glm::mat4 transToOrigin =glm::translate(glm::vec3(-(planeX + planeWidth / 2 ), -(planeY + planeHeight / 2), 0.0f));
-    glm::mat4 transBack = glm::translate(glm::vec3(planeX + planeWidth / 2, planeY + planeHeight / 2, 0.0f));
-    glm::mat4 rotateM = glm::rotate(glm::mat4(1.0f), glm::radians(planeRotationDegrees), glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 transToOrigin =
+        glm::translate(glm::vec3(-(planeX + planeWidth / 2),
+                                 -(planeY + planeHeight / 2),
+                                 0.0f));
+    glm::mat4 transBack = glm::translate(
+        glm::vec3(planeX + planeWidth / 2, planeY + planeHeight / 2, 0.0f));
+    glm::mat4 rotateM = glm::rotate(glm::mat4(1.0f),
+                                    glm::radians(planeRotationDegrees),
+                                    glm::vec3(0.0f, 0.0f, 1.0f));
     myMatrix = resizeM * planeTranslM * transBack * rotateM * transToOrigin;
     glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, &myMatrix[0][0]);
 
     glDrawElements(GL_TRIANGLES,
                    6,
                    GL_UNSIGNED_INT,
-                   (const void *)(2 * sizeof(GLuint)));
+                   (const void *)(8 * sizeof(GLuint)));
 
     glFlush();
 }
