@@ -34,6 +34,7 @@ float planeX = 40.0f, planeY = 40.0f;
 float planeOffsetX = 0.0f, planeOffsetY = 0.0f;
 float planeSpeedX = 1.0f, planeSpeedY = 3.0f;
 float planeRotationDegrees = 0.0f;
+float planeRotationSpeed = 0.0f;
 
 float cloudWidth = 190.0f, cloudHeight = 90.0f;
 float cloudSpeedX = 0.0f;
@@ -283,38 +284,49 @@ void Initialize(void) {
 
 void updatePlane() {
     float skyColorStep = 0.0f;
-    if (planeOffsetX <= 100.0f) {
+    if (planeOffsetX <= 150.0f) { // takeoff
         planeSpeedX = 2.0f;
         planeSpeedY = 0.0f;
-        planeRotationDegrees = 0.0f;
-    } else if (planeOffsetX > 100.0f && planeOffsetX <= 175.0f) {
+        planeRotationSpeed = 0.009f;
+        
+    } else if (planeOffsetX > 100.0f && planeOffsetX <= 300.0f) { // mid air takeoff P 1 
         planeSpeedX = 2.0f;
-        planeSpeedY = 2.0f;
-        planeRotationDegrees = 15.0f;
-    } else if (planeOffsetX > 175.0f && planeOffsetX <= 300.0f) {
+        planeSpeedY = 1.0f;
+        planeRotationSpeed = 0.13f;
+        
+    } else if (planeOffsetX > 300.0f && planeOffsetX <= 400.0f) { // mid air takeoff part 2
         planeSpeedX = 2.0f;
-        planeSpeedY = 2.0f;
-        planeRotationDegrees = 45.0f;
-    } else if (planeOffsetX > 300.0f && planeOffsetX <= 600.0f) {
+        planeSpeedY = 1.0f;
+        planeRotationSpeed = -0.2f;
+    } else if (planeOffsetX > 400.0f && planeOffsetX <= 500.0f) { // cruising
         planeSpeedX = 0.3f;
         planeSpeedY = 0.0f;
         planeRotationDegrees = 0.0f;
+        planeRotationSpeed = 0.0f;
         cloudSpeedX = -0.7f;
         skyColorStep = 0.001f;
-    } else if (planeOffsetX > 600.0f && planeOffsetX <= 700.0f) {
+    } else if (planeOffsetX > 500.0f && planeOffsetX <= 600.0f) { // cruising
         sunSpeedX = -3.0f;
         skyColorStep = 0.008f;
-    } else if (planeOffsetX > 700.0f && planeOffsetX <= 850.0f) {
+    } else if (planeOffsetX == 601.0f) {
+        planeRotationDegrees = 300.0f;
+
+    } else if (planeOffsetX > 601.0f && planeOffsetX <= 780.0f) { // landing p1
         planeSpeedX = 2.0f;
-        planeSpeedY = -2.0f;
-        planeRotationDegrees = 315.0f;
-    } else if (planeOffsetX > 850.0f && planeOffsetX <= 900.0f) {
+        planeSpeedY = -1.0f;
+
+        planeRotationSpeed = -0.17f;
+
+    } else if (planeOffsetX > 780.0f && planeOffsetX <= 900.0f) { // landing p2
         planeSpeedX = 2.0f;
-        planeSpeedY = -2.0f;
-        planeRotationDegrees = 345.0f;
-    } else if (planeOffsetX > 900.0f && planeOffsetX <= 1000.0f) {
+        planeSpeedY = -1.0f;
+
+        planeRotationSpeed = 0.25f;
+
+    } else if (planeOffsetX > 900.0f && planeOffsetX <= 1000.0f) { // touchdown
         planeRotationDegrees = 0.0f;
-    } else if (planeOffsetX > 1000.0f) {
+        planeRotationSpeed = 0.0f;
+    } else if (planeOffsetX > 1000.0f) { // stop all
         planeSpeedX = 0;
         cloudSpeedX = 0;
         sunSpeedX = 0;
@@ -333,6 +345,8 @@ void updatePlane() {
     for (auto &&offset : cloudOffsets) {
         offset.first += cloudSpeedX;
     }
+
+    planeRotationDegrees += planeRotationSpeed;
 }
 
 //  Functia de desenarea a graficii pe ecran;
